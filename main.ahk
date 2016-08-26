@@ -1,38 +1,27 @@
 ﻿
-libName:="lib.csv"
+libName:="lib.txt"
 
 FileRead, csvFile, % libName
 
 lib:=Array()
 
-Loop, Parse, csvFile, `n,
+Loop, Parse, csvFile, % "`r`n",
 {
 	line:=A_Index
-	Loop, Parse, A_LoopField, CSV,
+	RegExMatch(A_LoopField, "([^,， ]+)(?:.(.+))?", match)
+	if(match)
 	{
-		if(A_Index=1)
-		{
-			if A_LoopField is Number
-			{
-				lib.Insert(Object())
-				lib[lib.MaxIndex()].num:=A_LoopField
-				lib[lib.MaxIndex()].notes:=""
-			}
-			Else
-			{
-				Continue
-			}
-		}
-		Else
-		{
-			lib[lib.MaxIndex()].notes.=A_LoopField "`n"
-		}
+		lib.Insert(Object())
+		lib[lib.MaxIndex()].num:=match1
+		lib[lib.MaxIndex()].notes:=match2
 	}
 }
 
 gui, font, S18
-gui, add, Edit, w400 R16 Multi vinputs
-gui, add, Button, w150 Default ginsert, 插入
+gui, add, Edit, group w400 R16 Multi vinputs
+gui, add, Edit, x+10 w400 R16 Multi ReadOnly vdup_edit
+gui, add, Edit, x+10 w400 R16 Multi ReadOnly vnew_edit
+gui, add, Button, xs w150 Default ginsert, 插入
 gui, add, Button, w100 x+150 gGuiClose, 退出
 gui, Show
 Return
@@ -46,13 +35,16 @@ inputList:=Array()
 dupList:=Array()
 newList:=Array()
 lists:=inputs "`n"
-Loop, Parse, lists, `n
+Loop, Parse, lists, `r`n
 {
-	if(RegExMatch(A_LoopField, "([0-9]{4,})(?:\s|,|，)*(.*)", matchs))
+	startPos:=1
+	while(startPos:=RegExMatch(A_LoopField, "O)([^\s,，]+)+", matchs,startPos)+matchs.Len(1))
 	{
-		inputList.Insert(Object())
-		inputList[inputList.MaxIndex()].num:=matchs1
-		inputList[inputList.MaxIndex()].notes:=matchs2
+		loop, % matchs.Count()
+		{
+			inputList.Insert(Object())
+			inputList[inputList.MaxIndex()].num:=matchs.Value(A_Index)
+		}
 	}
 }
 loop, % inputList.MaxIndex()
@@ -67,7 +59,6 @@ loop, % inputList.MaxIndex()
 	{
 		newList.Insert(Object())
 		newList[newList.MaxIndex()].num:=inputList[A_Index].num
-		newList[newList.MaxIndex()].notes:=inputList[A_Index].notes
 	}
 }
 
@@ -75,10 +66,17 @@ if(dupList.MaxIndex()>0){
 	test:="重复项：`n`n"
 	loop, % dupList.MaxIndex()
 	{
-		test.=dupList[A_Index].num "`n"
-		test.=dupList[A_Index].notes "`n`n"
+		test.=dupList[A_Index].num
+		if(dupList[A_Index].notes)
+		{
+			test.=": " dupList[A_Index].notes "`r`n"
+		}else{
+			test.="`r`n"
+		}
 	}
-	MsgBox, % test
+	GuiControl,, dup_edit,% test
+}else{
+	GuiControl,, dup_edit, 无重复项
 }
 
 if(newList.MaxIndex()>0)
@@ -86,16 +84,17 @@ if(newList.MaxIndex()>0)
 	test:="新增：`n`n"
 	loop, % newList.MaxIndex()
 	{
-		test.=newList[A_Index].num "`n"
-		test.=newList[A_Index].notes "`n`n"
+		test.=newList[A_Index].num "`r`n"
 	}
-	MsgBox, % test
+	GuiControl,, new_edit,% test
 	adds:=""
 	loop, % newList.MaxIndex()
 	{
-		adds.=newList[A_Index].num "," newList[A_Index].notes "`n"
+		adds.=newList[A_Index].num "," newList[A_Index].notes "`r`n"
 	}
 	FileAppend, % adds, % libName
+}else{
+	GuiControl,, new_edit, 无新增项
 }
 
 if(ErrorLevel)
@@ -105,6 +104,7 @@ if(ErrorLevel)
 Else
 {
 	GuiControl, , inputs,
+	FileRead, csvFile, % libName
 }
 Return
 
